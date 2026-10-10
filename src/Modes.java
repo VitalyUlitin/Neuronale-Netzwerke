@@ -35,7 +35,7 @@ public class Modes {
                 layers.getLayers().getLast(), weights.getWeights().getLast()
         ));
 
-        IO.println(layers.output());
+        System.out.println(layers.output());
     }
 
     public static void calculate(String source) {
@@ -53,6 +53,6 @@ public class Modes {
             );
         }
 
-        IO.println(layers.output());
+        System.out.println(layers.output());
     }
 }
