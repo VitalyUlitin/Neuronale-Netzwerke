@@ -2,7 +2,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 public class Layers {
-    private ArrayList<double[]> layers;
+    /*private ArrayList<double[]> layers;
 
     public Layers() {
         layers = new ArrayList<double[]>();
@@ -23,5 +23,15 @@ public class Layers {
 
     public String output() {
         return Arrays.toString(layers.getLast());
+    }*/
+    private Neuron[] neurons;
+    private double[][] weightMatrix;
+
+    public double[][] getWeightMatrix() {
+        return weightMatrix;
+    }
+
+    public Neuron[] getNeurons() {
+        return neurons;
     }
 }
