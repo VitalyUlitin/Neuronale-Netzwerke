@@ -1,13 +1,12 @@
 public class LayerNeuron extends Neuron implements Function {
     private Function function;
 
-    public LayerNeuron(double value, Function function) {
-        this.value = value;
+    public LayerNeuron(Function function) {
         this.function = function;
     }
 
     public void setValue(double value) {
-        this.value = calculate(this.value);
+        this.value = calculate(value);
     }
 
     public void setFunction (Function function) {
