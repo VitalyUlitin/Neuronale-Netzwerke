@@ -7,7 +7,7 @@ public class Matrixoperations {
         double[][] weightMatrix = layer.getWeightMatrix();
 
         //fill neuronValues with the corresponding values
-        for (int i = 0; i < neuronValues.length; ++i) {
+        for (int i = 0; i < neuronValues.length; i++) {
             neuronValues[i] = neurons[i].getValue();
         }
 

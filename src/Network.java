@@ -11,9 +11,25 @@ public class Network {
         this.source = "";
     }
 
-    public void forwardPass() {
+    public double[] forwardPass() {
         layers = Reader.readLayers;
         expectedOutput = Reader.readOutput;
+
+        double[] output = expectedOutput.length;
+
+        for (int i = 0; i < layers.length - 1; i++) {
+            layers[i + 1].input(Matrixoperations.matrixmultiplication(
+                    layers[i],layers[i + 1.].length;
+            ))
+        }
+
+        Neuron[] lastLayerNeurons = layers[layers.length - 1].getNeurons();
+
+        for (int i = 0; i < output.length; i++) {
+            output[i] = lastLayerNeurons[i].getValue();
+        }
+
+        return output;
     }
 
     public void firstInit() {
