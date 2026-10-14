@@ -1,5 +1,5 @@
 public class Network {
-    private String source;
+    private final String source;
     private Layers[] layers;
     private double[] expectedOutput;
 
@@ -12,16 +12,43 @@ public class Network {
     }
 
     public double[] forwardPass() {
-        layers = Reader.readLayers;
-        expectedOutput = Reader.readOutput;
+        //gets the networktopology and initiates the network with their respective neuron count & weightMatrixes
+        layers = Reader.readLayers(source);
+        expectedOutput = Reader.readOutput(source);
 
-        double[] output = expectedOutput.length;
+
+
+        //iterates through the network with the matrixmultiplications
+        for (int i = 0; i < layers.length - 1; i++) {
+            layers[i + 1].input(Matrixoperations.matrixmultiplication(
+                    layers[i],layers[i + 1].getNeurons().length
+            ));
+        }
+
+        return getOutput();
+    }
+
+    public double[] firstInit() {
+        layers = Reader.readLayersFirstInit(source);
+        expectedOutput = Reader.readOutput(source);
+
+        double[] output = new double[expectedOutput.length];
+
+        for (int i = 0; i < layers.length - 1; i++) {
+            layers[i].generateRandomWeightMatrix(layers[i + 1].getNeurons().length);
+        }
 
         for (int i = 0; i < layers.length - 1; i++) {
             layers[i + 1].input(Matrixoperations.matrixmultiplication(
-                    layers[i],layers[i + 1.].length;
-            ))
+                    layers[i],layers[i + 1].getNeurons().length
+            ));
         }
+
+        return output;
+    }
+
+    private double[] getOutput() {
+        double[] output = new double[expectedOutput.length];
 
         Neuron[] lastLayerNeurons = layers[layers.length - 1].getNeurons();
 
@@ -30,9 +57,5 @@ public class Network {
         }
 
         return output;
-    }
-
-    public void firstInit() {
-
     }
 }
