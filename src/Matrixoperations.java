@@ -11,9 +11,9 @@ public class Matrixoperations {
             neuronValues[i] = neurons[i].getValue();
         }
 
-        if (weightMatrix.length == 0 || weightMatrix[0].length != neuronValues.length) {
+        if (weightMatrix.length != nextInputLength) {
             throw new IllegalArgumentException(
-                    "Gewichtsmatrix und Layer haben unterschiedlichen Laengen"
+                    "Gewichtsmatrix passt nicht zum nächsten Layer"
             );
         }
 
