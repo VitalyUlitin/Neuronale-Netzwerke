@@ -1,9 +1,12 @@
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Random;
 
 public class Layers {
     private Neuron[] neurons;
     private double[][] weightMatrix;
+
+    public Layers(int neuronNumbers) {
+        neurons = new Neuron[neuronNumbers];
+    }
 
     public Layers(int neuronNumbers, double[][] weightMatrix) {
         neurons = new Neuron[neuronNumbers];
@@ -23,6 +26,18 @@ public class Layers {
         this.weightMatrix = weightMatrix;
     }
 
+    public void generateRandomWeightMatrix(int nextNeuronLength) {
+        Random rand = new Random();
+
+        weightMatrix = new double[nextNeuronLength][neurons.length];
+
+        for (int i = 0; i < weightMatrix.length; i++) {
+            for (int j = 0; j < weightMatrix[0].length; j++) {
+                weightMatrix[i][j] = rand.nextDouble(-1, 1);
+            }
+        }
+    }
+
     public Neuron[] getNeurons() {
         return neurons;
     }
@@ -34,7 +49,30 @@ public class Layers {
         }
 
         for (int i = 0; i < inputs.length; i++) {
-            neurons[i].setValue(inputs[i]);
+            if (!(neurons[i] instanceof BiasNeuron)) {
+                neurons[i].setValue(inputs[i]);
+            }
         }
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder out = new StringBuilder("Neuronen:\n[");
+
+        for (Neuron neuron : neurons) {
+            out.append(neuron.getValue()).append(",");
+        }
+
+        out.append("]\n\nGewichte:\n");
+
+        for (int i = 0; i < weightMatrix.length; i++) {
+            out.append("[");
+            for (int j = 0; j < weightMatrix[i].length; j++) {
+                out.append(weightMatrix[i][j]).append(",");
+            }
+            out.append("]");
+        }
+
+        return out.toString();
     }
 }
