@@ -1,13 +1,11 @@
-
 import java.io.File;
-import java.util.ArrayList;
 import java.util.Scanner;
 
 public class Reader {
 
     public static Layers[] readLayers(String source) {
         double[] input = readInput(source);
-        ArrayList<double[][]> weights = readWeightMatrices(source);
+        double[][][] weights = readWeightMatrices(source);
 
         Layers[] layers = createLayers(input, weights, true);
 
@@ -16,7 +14,7 @@ public class Reader {
 
     public static Layers[] readLayersFirstInit(String source) {
         double[] input = readInput(source);
-        ArrayList<double[][]> weights = readWeightMatrices(source);
+        double[][][] weights = readWeightMatrices(source);
 
         Layers[] layers = createLayers(input, weights, false);
 
@@ -24,10 +22,10 @@ public class Reader {
     }
 
     public static double[] readOutput(String source) {
-        ArrayList<String> lines = readLines(source);
+        String[] lines = readLines(source);
 
-        for (int i = lines.size() - 1; i >= 0; i--) {
-            String line = lines.get(i).trim();
+        for (int i = lines.length - 1; i >= 0; i--) {
+            String line = lines[i].trim();
 
             if (!line.isEmpty()) {
                 return parseValues(line);
@@ -39,32 +37,37 @@ public class Reader {
 
     private static Layers[] createLayers(
             double[] input,
-            ArrayList<double[][]> weights,
+            double[][][] weights,
             boolean withWeights) {
 
-        if (weights.isEmpty()) {
+        if (weights.length == 0) {
             return new Layers[0];
         }
 
-        int count = weights.size() + 1;
+        int count = weights.length + 1;
         int[] neuronNumbers = new int[count];
 
         // Anzahl der Neuronen aus den Gewichtsmatrizen bestimmen
-        for (int i = 0; i < weights.size(); i++) {
-            double[][] matrix = weights.get(i);
+        for (int i = 0; i < weights.length; i++) {
+            double[][] matrix = weights[i];
+
+            // Anzahl der Spalten
             neuronNumbers[i] = matrix[0].length;
         }
 
+        // Letzte Matrix bestimmt die Anzahl
+        // der Neuronen im letzten Layer
         neuronNumbers[count - 1] =
-                weights.getLast().length;
+                weights[weights.length - 1].length;
 
         Layers[] layers = new Layers[count];
 
         for (int i = 0; i < count; i++) {
-            if (withWeights && i < weights.size()) {
+
+            if (withWeights && i < weights.length) {
                 layers[i] = new Layers(
                         neuronNumbers[i],
-                        weights.get(i)
+                        weights[i]
                 );
             } else {
                 layers[i] = new Layers(neuronNumbers[i]);
@@ -83,15 +86,15 @@ public class Reader {
                     .setValue(input[i]);
         }
 
-        // Bias-Neuronen berücksichtigen, wenn die
-        // Gewichtsmatrix dafür eine zusätzliche Spalte hat
-        for (int i = 0; i < weights.size(); i++) {
+        // Bias-Neuronen berücksichtigen
+        for (int i = 0; i < weights.length; i++) {
+
             int normalNeurons;
 
             if (i == 0) {
                 normalNeurons = input.length;
             } else {
-                normalNeurons = weights.get(i - 1).length;
+                normalNeurons = weights[i - 1].length;
             }
 
             if (neuronNumbers[i] == normalNeurons + 1) {
@@ -104,73 +107,149 @@ public class Reader {
     }
 
     private static double[] readInput(String source) {
-        ArrayList<String> lines = readLines(source);
+        String[] lines = readLines(source);
 
-        if (lines.isEmpty()) {
+        if (lines.length == 0) {
             return new double[0];
         }
 
-        return parseValues(lines.get(0).trim());
+        return parseValues(lines[0].trim());
     }
 
-    private static ArrayList<double[][]> readWeightMatrices(
+    private static double[][][] readWeightMatrices(
             String source) {
 
-        ArrayList<String> lines = readLines(source);
-        ArrayList<double[][]> allWeights = new ArrayList<>();
-        ArrayList<double[]> currentMatrix = new ArrayList<>();
+        String[] lines = readLines(source);
 
-        // Erste Zeile = Input, letzte nichtleere Zeile = Output
-        int lastLine = lines.size() - 1;
+        // Zählen, wie viele Gewichtsmatrizen vorhanden sind
+        int matrixCount = 0;
 
-        while (lastLine >= 0 && lines.get(lastLine).trim().isEmpty()) {
+        for (int i = 1; i < lines.length; i++) {
+            String line = lines[i].trim();
+
+            if (line.startsWith("#")) {
+                matrixCount++;
+            }
+        }
+
+        // Falls die erste Matrix keinen #-Marker hat
+        if (matrixCount == 0) {
+            matrixCount = 1;
+        }
+
+        double[][][] allWeights =
+                new double[matrixCount][][];
+
+        int currentMatrix = 0;
+
+        // Temporäres normales Array
+        double[][] currentRows = new double[0][];
+
+        // Letzte nichtleere Zeile = Output
+        int lastLine = lines.length - 1;
+
+        while (lastLine >= 0 &&
+                lines[lastLine].trim().isEmpty()) {
             lastLine--;
         }
 
         for (int i = 1; i < lastLine; i++) {
-            String line = lines.get(i).trim();
+
+            String line = lines[i].trim();
 
             if (line.isEmpty()) {
                 continue;
             }
 
             if (line.startsWith("#")) {
-                if (!currentMatrix.isEmpty()) {
-                    allWeights.add(
-                            currentMatrix.toArray(new double[0][])
-                    );
-                    currentMatrix.clear();
+
+                // Aktuelle Matrix speichern
+                if (currentRows.length > 0) {
+                    allWeights[currentMatrix] = currentRows;
+                    currentMatrix++;
+
+                    currentRows = new double[0][];
                 }
+
             } else {
-                currentMatrix.add(parseValues(line));
+
+                double[] row = parseValues(line);
+
+                // Neues Array mit einer zusätzlichen Zeile
+                double[][] newRows =
+                        new double[currentRows.length + 1][];
+
+                // Alte Zeilen kopieren
+                for (int j = 0; j < currentRows.length; j++) {
+                    newRows[j] = currentRows[j];
+                }
+
+                // Neue Zeile hinzufügen
+                newRows[currentRows.length] = row;
+
+                currentRows = newRows;
             }
         }
 
-        if (!currentMatrix.isEmpty()) {
-            allWeights.add(
-                    currentMatrix.toArray(new double[0][])
-            );
+        // Letzte Matrix speichern
+        if (currentRows.length > 0) {
+            allWeights[currentMatrix] = currentRows;
         }
 
-        return allWeights;
+        // Falls weniger Matrizen gefunden wurden,
+        // Array entsprechend verkleinern
+        int actualCount = 0;
+
+        for (int i = 0; i < allWeights.length; i++) {
+            if (allWeights[i] != null) {
+                actualCount++;
+            }
+        }
+
+        double[][][] result =
+                new double[actualCount][][];
+
+        for (int i = 0; i < actualCount; i++) {
+            result[i] = allWeights[i];
+        }
+
+        return result;
     }
 
-    private static ArrayList<String> readLines(String source) {
-        ArrayList<String> lines = new ArrayList<>();
-
+    private static String[] readLines(String source) {
         try {
             Scanner scanner = new Scanner(new File(source));
 
+            // Erst zählen
+            int count = 0;
+
             while (scanner.hasNextLine()) {
-                lines.add(scanner.nextLine());
+                scanner.nextLine();
+                count++;
             }
 
             scanner.close();
+
+            // Scanner nochmal öffnen
+            scanner = new Scanner(new File(source));
+
+            String[] lines = new String[count];
+
+            int i = 0;
+
+            while (scanner.hasNextLine()) {
+                lines[i] = scanner.nextLine();
+                i++;
+            }
+
+            scanner.close();
+
+            return lines;
+
         } catch (Exception e) {
             System.out.println("Fehler beim Lesen der CSV!");
+            return new String[0];
         }
-
-        return lines;
     }
 
     private static double[] parseValues(String line) {
@@ -178,7 +257,8 @@ public class Reader {
         double[] result = new double[values.length];
 
         for (int i = 0; i < values.length; i++) {
-            result[i] = Double.parseDouble(values[i].trim());
+            result[i] =
+                    Double.parseDouble(values[i].trim());
         }
 
         return result;
