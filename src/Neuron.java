@@ -1,9 +1,16 @@
+
 public class Neuron {
     protected double value;
 
-    /** Gibt den gespeicherten Wert des Neurons zurück.
-     * @return der gespeicherte Wert des Neurons */
+    public Neuron() {
+        this.value = 0.0;
+    }
+
     public double getValue() {
         return this.value;
+    }
+
+    public void setValue(double value) {
+        this.value = value;
     }
 }
