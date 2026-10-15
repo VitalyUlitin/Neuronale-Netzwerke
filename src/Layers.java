@@ -54,7 +54,6 @@ public class Layers {
                 lneuron.setValue(inputs[i]);
             }
         }
-        System.out.println(this.toString());
     }
 
     @Override
