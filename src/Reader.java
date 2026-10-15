@@ -1,11 +1,12 @@
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Scanner;
 
 public class Reader {
 
     public static Layers[] readLayers(String source) {
-        double[] input = readInput(source);
-        double[][][] weights = readWeightMatrices(source);
+        ParsedCSV parsed = parseCSV(source);
 
         if (parsed.weights.isEmpty()) {
             throw new IllegalArgumentException(
@@ -31,8 +32,28 @@ public class Reader {
 
 
     public static Layers[] readLayersFirstInit(String source) {
-        double[] input = readInput(source);
-        double[][][] weights = readWeightMatrices(source);
+        ParsedCSV parsed = parseCSV(source);
+
+        /*
+         * Bei firstInit kann die Topologie entweder
+         * aus den Matrizen oder aus #Functions kommen.
+         */
+        int[] neuronNumbers =
+                determineNeuronNumbers(parsed);
+
+        double[] input = getInput(
+                parsed.data,
+                neuronNumbers
+        );
+
+        return createLayers(
+                input,
+                neuronNumbers,
+                parsed.weights,
+                parsed.functions,
+                false
+        );
+    }
 
 
     public static double[] readOutput(String source) {
@@ -63,11 +84,18 @@ public class Reader {
         );
     }
 
-    public static double[] readOutput(String source) {
-        String[] lines = readLines(source);
 
-        for (int i = lines.length - 1; i >= 0; i--) {
-            String line = lines[i].trim();
+    private static double[] getInput(
+            double[] data,
+            int[] neuronNumbers) {
+
+        int inputCount = neuronNumbers[0];
+
+        int outputCount =
+                neuronNumbers[neuronNumbers.length - 1];
+
+        if (data.length
+                != inputCount + outputCount) {
 
             throw new IllegalArgumentException(
                     "Input-/Output-Zeile passt nicht "
@@ -180,28 +208,19 @@ public class Reader {
 
     private static Layers[] createLayers(
             double[] input,
-            double[][][] weights,
+            int[] normalNeuronNumbers,
+            ArrayList<double[][]> fileWeights,
+            ArrayList<String[]> functionNames,
             boolean withWeights) {
 
-        if (weights.length == 0) {
-            return new Layers[0];
-        }
+        int layerCount =
+                normalNeuronNumbers.length;
 
-        int count = weights.length + 1;
-        int[] neuronNumbers = new int[count];
+        Layers[] layers =
+                new Layers[layerCount];
 
-        // Anzahl der Neuronen aus den Gewichtsmatrizen bestimmen
-        for (int i = 0; i < weights.length; i++) {
-            double[][] matrix = weights[i];
 
-            // Anzahl der Spalten
-            neuronNumbers[i] = matrix[0].length;
-        }
-
-        // Letzte Matrix bestimmt die Anzahl
-        // der Neuronen im letzten Layer
-        neuronNumbers[count - 1] =
-                weights[weights.length - 1].length;
+        for (int i = 0; i < layerCount; i++) {
 
             /*
              * Alle Layer außer dem Output-Layer
@@ -234,13 +253,6 @@ public class Reader {
                                 internalMatrix
                         );
 
-        for (int i = 0; i < count; i++) {
-
-            if (withWeights && i < weights.length) {
-                layers[i] = new Layers(
-                        neuronNumbers[i],
-                        weights[i]
-                );
             } else {
 
                 layers[i] =
@@ -313,16 +325,9 @@ public class Reader {
             neuron.setValue(input[i]);
         }
 
-        // Bias-Neuronen berücksichtigen
-        for (int i = 0; i < weights.length; i++) {
 
-            int normalNeurons;
-
-            if (i == 0) {
-                normalNeurons = input.length;
-            } else {
-                normalNeurons = weights[i - 1].length;
-            }
+        return layers;
+    }
 
 
     /*
@@ -380,156 +385,461 @@ public class Reader {
         return result;
     }
 
-    private static double[] readInput(String source) {
-        String[] lines = readLines(source);
 
-        if (lines.length == 0) {
-            return new double[0];
+    /*
+     * Aktivierungsfunktion aus einem String erzeugen.
+     */
+    private static Function parseFunction(
+            String name) {
+
+        String normalized =
+                name.trim().toLowerCase();
+
+
+        switch (normalized) {
+
+            case "id":
+            case "identity":
+                return value -> value;
+
+
+            case "relu":
+                return value ->
+                        Math.max(0.0, value);
+
+
+            case "sigmoid":
+            case "logistic":
+                return value ->
+                        1.0
+                                / (1.0
+                                + Math.exp(-value));
+
+
+            case "tanh":
+                return Math::tanh;
         }
 
-        return parseValues(lines[0].trim());
+
+        /*
+         * Schwellwertfunktion:
+         *
+         * step:3
+         * step:1.5
+         */
+        if (normalized.startsWith("step:")) {
+
+            double theta =
+                    Double.parseDouble(
+                            normalized.substring(5)
+                    );
+
+            return value ->
+                    value >= theta
+                            ? 1.0
+                            : 0.0;
+        }
+
+
+        /*
+         * Deutsche Variante ebenfalls erlauben:
+         *
+         * schwellwert:3
+         */
+        if (normalized.startsWith("schwellwert:")) {
+
+            double theta =
+                    Double.parseDouble(
+                            normalized.substring(
+                                    "schwellwert:".length()
+                            )
+                    );
+
+            return value ->
+                    value >= theta
+                            ? 1.0
+                            : 0.0;
+        }
+
+
+        throw new IllegalArgumentException(
+                "Unbekannte Aktivierungsfunktion: "
+                        + name
+        );
     }
 
-    private static double[][][] readWeightMatrices(
-            String source) {
 
-        String[] lines = readLines(source);
+    /*
+     * Prüft, dass pro Layer genau so viele
+     * Funktionen wie normale Neuronen
+     * angegeben wurden.
+     */
+    private static void validateFunctions(
+            ArrayList<String[]> functions,
+            int[] neuronNumbers) {
 
-        // Zählen, wie viele Gewichtsmatrizen vorhanden sind
-        int matrixCount = 0;
+        /*
+         * Keine Angabe bedeutet:
+         * überall Identitätsfunktion.
+         */
+        if (functions.isEmpty()) {
+            return;
+        }
 
-        for (int i = 1; i < lines.length; i++) {
-            String line = lines[i].trim();
 
-            if (line.startsWith("#")) {
-                matrixCount++;
+        if (functions.size()
+                != neuronNumbers.length) {
+
+            throw new IllegalArgumentException(
+                    "Anzahl der Funktionszeilen stimmt "
+                            + "nicht mit der Anzahl der Layer überein."
+            );
+        }
+
+
+        for (int i = 0;
+             i < functions.size();
+             i++) {
+
+            if (functions.get(i).length
+                    != neuronNumbers[i]) {
+
+                throw new IllegalArgumentException(
+                        "Ebene "
+                                + i
+                                + " benötigt "
+                                + neuronNumbers[i]
+                                + " Aktivierungsfunktionen, "
+                                + "angegeben wurden "
+                                + functions.get(i).length
+                );
             }
         }
+    }
 
-        // Falls die erste Matrix keinen #-Marker hat
-        if (matrixCount == 0) {
-            matrixCount = 1;
-        }
 
-        double[][][] allWeights =
-                new double[matrixCount][][];
+    /*
+     * Liest die komplette Datei.
+     */
+    private static ParsedCSV parseCSV(
+            String source) {
 
-        int currentMatrix = 0;
+        ArrayList<String> lines =
+                readLines(source);
 
-        // Temporäres normales Array
-        double[][] currentRows = new double[0][];
+        double[] data = null;
 
-        // Letzte nichtleere Zeile = Output
-        int lastLine = lines.length - 1;
+        ArrayList<String[]> functions =
+                new ArrayList<>();
 
-        while (lastLine >= 0 &&
-                lines[lastLine].trim().isEmpty()) {
-            lastLine--;
-        }
+        ArrayList<double[][]> weights =
+                new ArrayList<>();
 
-        for (int i = 1; i < lastLine; i++) {
+        ArrayList<double[]> currentMatrix =
+                new ArrayList<>();
 
-            String line = lines[i].trim();
+
+        Section section =
+                Section.NONE;
+
+
+        for (String rawLine : lines) {
+
+            String line =
+                    rawLine.trim();
+
 
             if (line.isEmpty()) {
                 continue;
             }
 
-            if (line.startsWith("#")) {
 
-                // Aktuelle Matrix speichern
-                if (currentRows.length > 0) {
-                    allWeights[currentMatrix] = currentRows;
-                    currentMatrix++;
+            /*
+             * Neuer Hauptblock beginnt.
+             */
+            if (line.equalsIgnoreCase("#Functions")) {
 
-                    currentRows = new double[0][];
+                /*
+                 * Falls vorher ein Gewichtsblock
+                 * offen war, abschließen.
+                 */
+                if (section == Section.WEIGHTS
+                        && !currentMatrix.isEmpty()) {
+
+                    weights.add(
+                            toMatrix(currentMatrix)
+                    );
+
+                    currentMatrix.clear();
                 }
 
-            } else {
+                section =
+                        Section.FUNCTIONS;
 
-                double[] row = parseValues(line);
+                continue;
+            }
 
-                // Neues Array mit einer zusätzlichen Zeile
-                double[][] newRows =
-                        new double[currentRows.length + 1][];
 
-                // Alte Zeilen kopieren
-                for (int j = 0; j < currentRows.length; j++) {
-                    newRows[j] = currentRows[j];
+            if (line.equalsIgnoreCase("#Weights")) {
+
+                if (section == Section.WEIGHTS
+                        && !currentMatrix.isEmpty()) {
+
+                    weights.add(
+                            toMatrix(currentMatrix)
+                    );
+
+                    currentMatrix.clear();
                 }
 
-                // Neue Zeile hinzufügen
-                newRows[currentRows.length] = row;
+                section =
+                        Section.WEIGHTS;
 
-                currentRows = newRows;
+                continue;
+            }
+
+
+            /*
+             * Noch kein Block:
+             * erste Zahlenzeile ist Input + Output.
+             */
+            if (section == Section.NONE) {
+
+                if (!line.startsWith("#")
+                        && data == null) {
+
+                    data =
+                            parseValues(line);
+                }
+
+                continue;
+            }
+
+
+            /*
+             * Funktionsblock
+             */
+            if (section
+                    == Section.FUNCTIONS) {
+
+                /*
+                 * "# ebene ..." nur als Kommentar
+                 * verwenden.
+                 */
+                if (line.startsWith("#")) {
+                    continue;
+                }
+
+                functions.add(
+                        parseStrings(line)
+                );
+
+                continue;
+            }
+
+
+            /*
+             * Gewichtsblock
+             */
+            if (section
+                    == Section.WEIGHTS) {
+
+                /*
+                 * NUR "# ebene ..."
+                 * startet eine neue Matrix.
+                 */
+                if (isLayerHeader(line)) {
+
+                    if (!currentMatrix.isEmpty()) {
+
+                        weights.add(
+                                toMatrix(
+                                        currentMatrix
+                                )
+                        );
+
+                        currentMatrix.clear();
+                    }
+
+                    continue;
+                }
+
+
+                /*
+                 * # Bias Ebene ...
+                 * oder andere Kommentare
+                 */
+                if (line.startsWith("#")) {
+                    continue;
+                }
+
+
+                currentMatrix.add(
+                        parseValues(line)
+                );
             }
         }
 
-        // Letzte Matrix speichern
-        if (currentRows.length > 0) {
-            allWeights[currentMatrix] = currentRows;
+
+        /*
+         * Letzte Matrix hinzufügen.
+         */
+        if (!currentMatrix.isEmpty()) {
+
+            weights.add(
+                    toMatrix(currentMatrix)
+            );
         }
 
-        // Falls weniger Matrizen gefunden wurden,
-        // Array entsprechend verkleinern
-        int actualCount = 0;
 
-        for (int i = 0; i < allWeights.length; i++) {
-            if (allWeights[i] != null) {
-                actualCount++;
-            }
+        if (data == null) {
+
+            throw new IllegalArgumentException(
+                    "Keine Input-/Output-Zeile gefunden."
+            );
         }
 
-        double[][][] result =
-                new double[actualCount][][];
 
-        for (int i = 0; i < actualCount; i++) {
-            result[i] = allWeights[i];
-        }
-
-        return result;
+        return new ParsedCSV(
+                data,
+                functions,
+                weights
+        );
     }
 
-    private static String[] readLines(String source) {
-        try {
-            Scanner scanner = new Scanner(new File(source));
 
-            // Erst zählen
-            int count = 0;
+    private static boolean isLayerHeader(
+            String line) {
+
+        String normalized =
+                line.toLowerCase()
+                        .replaceAll("\\s+", "");
+
+        return normalized.startsWith(
+                "#ebene"
+        );
+    }
+
+
+    private static String[] parseStrings(
+            String line) {
+
+        String[] values =
+                line.split(",");
+
+        for (int i = 0;
+             i < values.length;
+             i++) {
+
+            values[i] =
+                    values[i].trim();
+        }
+
+        return values;
+    }
+
+
+    private static double[][] toMatrix(
+            ArrayList<double[]> rows) {
+
+        double[][] matrix =
+                rows.toArray(
+                        new double[0][]
+                );
+
+        validateMatrix(matrix);
+
+        return matrix;
+    }
+
+
+    private static void validateMatrix(
+            double[][] matrix) {
+
+        if (matrix.length == 0) {
+
+            throw new IllegalArgumentException(
+                    "Leere Gewichtsmatrix."
+            );
+        }
+
+
+        int columnCount =
+                matrix[0].length;
+
+
+        if (columnCount == 0) {
+
+            throw new IllegalArgumentException(
+                    "Gewichtsmatrix ohne Spalten."
+            );
+        }
+
+
+        for (double[] row : matrix) {
+
+            if (row.length
+                    != columnCount) {
+
+                throw new IllegalArgumentException(
+                        "Gewichtsmatrix ist "
+                                + "nicht rechteckig."
+                );
+            }
+        }
+    }
+
+
+    private static ArrayList<String> readLines(
+            String source) {
+
+        ArrayList<String> lines =
+                new ArrayList<>();
+
+
+        try (Scanner scanner =
+                     new Scanner(
+                             new File(source)
+                     )) {
 
             while (scanner.hasNextLine()) {
-                scanner.nextLine();
-                count++;
+
+                lines.add(
+                        scanner.nextLine()
+                );
             }
-
-            scanner.close();
-
-            // Scanner nochmal öffnen
-            scanner = new Scanner(new File(source));
-
-            String[] lines = new String[count];
-
-            int i = 0;
-
-            while (scanner.hasNextLine()) {
-                lines[i] = scanner.nextLine();
-                i++;
-            }
-
-            scanner.close();
-
-            return lines;
 
         } catch (Exception e) {
-            System.out.println("Fehler beim Lesen der CSV!");
-            return new String[0];
+
+            throw new RuntimeException(
+                    "Fehler beim Lesen der CSV-Datei.",
+                    e
+            );
         }
+
+
+        return lines;
     }
 
 
-        for (int i = 0; i < values.length; i++) {
+    private static double[] parseValues(
+            String line) {
+
+        String[] values =
+                line.split(",");
+
+        double[] result =
+                new double[values.length];
+
+
+        for (int i = 0;
+             i < values.length;
+             i++) {
+
             result[i] =
-                    Double.parseDouble(values[i].trim());
+                    Double.parseDouble(
+                            values[i].trim()
+                    );
         }
 
 
