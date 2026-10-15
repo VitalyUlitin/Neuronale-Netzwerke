@@ -50,9 +50,11 @@ public class Layers {
 
         for (int i = 0; i < inputs.length; i++) {
             if (!(neurons[i] instanceof BiasNeuron)) {
-                neurons[i].setValue(inputs[i]);
+                LayerNeuron lneuron = (LayerNeuron) neurons[i];
+                lneuron.setValue(inputs[i]);
             }
         }
+        System.out.println(this.toString());
     }
 
     @Override

@@ -1,6 +1,6 @@
 public class Main {
     static void main() {
-        Modes.calculate("");
+       // Modes.calculate("");
         //Modes.firstInit("");
     }
 }

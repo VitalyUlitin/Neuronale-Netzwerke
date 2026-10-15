@@ -8,7 +8,9 @@ public class Reader {
     public static Layers[] readLayers(String source) {
         double[] input = readInput(source);
         ArrayList<double[][]> weights = readWeightMatrices(source);
-
+        for(int i = 0; i<weights.size();i++) {
+            System.out.println(weights[][]);
+        }
         Layers[] layers = createLayers(input, weights, true);
 
         return layers;
@@ -17,7 +19,6 @@ public class Reader {
     public static Layers[] readLayersFirstInit(String source) {
         double[] input = readInput(source);
         ArrayList<double[][]> weights = readWeightMatrices(source);
-
         Layers[] layers = createLayers(input, weights, false);
 
         return layers;
@@ -26,15 +27,12 @@ public class Reader {
     public static double[] readOutput(String source) {
         ArrayList<String> lines = readLines(source);
 
-        for (int i = lines.size() - 1; i >= 0; i--) {
-            String line = lines.get(i).trim();
-
-            if (!line.isEmpty()) {
-                return parseValues(line);
-            }
+        double[] values = readHeaderValues(lines);
+        if (values.length == 0) {
+            return new double[0];
         }
 
-        return new double[0];
+        return new double[]{values[values.length - 1]};
     }
 
     private static Layers[] createLayers(
@@ -104,13 +102,22 @@ public class Reader {
     }
 
     private static double[] readInput(String source) {
-        ArrayList<String> lines = readLines(source);
-
-        if (lines.isEmpty()) {
+        double[] values = readHeaderValues(readLines(source));
+        if (values.length <= 1) {
             return new double[0];
         }
 
-        return parseValues(lines.get(0).trim());
+        return java.util.Arrays.copyOf(values, values.length - 1);
+    }
+
+    private static double[] readHeaderValues(ArrayList<String> lines) {
+        for (String line : lines) {
+            if (!line.trim().isEmpty()) {
+                return parseValues(line.trim());
+            }
+        }
+
+        return new double[0];
     }
 
     private static ArrayList<double[][]> readWeightMatrices(
