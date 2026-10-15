@@ -7,18 +7,60 @@ public class Reader {
         double[] input = readInput(source);
         double[][][] weights = readWeightMatrices(source);
 
-        Layers[] layers = createLayers(input, weights, true);
+        if (parsed.weights.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Keine Gewichtsmatrizen gefunden."
+            );
+        }
 
-        return layers;
+        int[] neuronNumbers = determineNeuronNumbers(parsed);
+
+        double[] input = getInput(
+                parsed.data,
+                neuronNumbers
+        );
+
+        return createLayers(
+                input,
+                neuronNumbers,
+                parsed.weights,
+                parsed.functions,
+                true
+        );
     }
+
 
     public static Layers[] readLayersFirstInit(String source) {
         double[] input = readInput(source);
         double[][][] weights = readWeightMatrices(source);
 
-        Layers[] layers = createLayers(input, weights, false);
 
-        return layers;
+    public static double[] readOutput(String source) {
+        ParsedCSV parsed = parseCSV(source);
+
+        int[] neuronNumbers =
+                determineNeuronNumbers(parsed);
+
+        int inputCount =
+                neuronNumbers[0];
+
+        int outputCount =
+                neuronNumbers[neuronNumbers.length - 1];
+
+        if (parsed.data.length
+                != inputCount + outputCount) {
+
+            throw new IllegalArgumentException(
+                    "Input-/Output-Zeile passt nicht "
+                            + "zur Netztopologie."
+            );
+        }
+
+        return Arrays.copyOfRange(
+                parsed.data,
+                inputCount,
+                inputCount + outputCount
+        );
     }
 
     public static double[] readOutput(String source) {
@@ -27,13 +69,114 @@ public class Reader {
         for (int i = lines.length - 1; i >= 0; i--) {
             String line = lines[i].trim();
 
-            if (!line.isEmpty()) {
-                return parseValues(line);
-            }
+            throw new IllegalArgumentException(
+                    "Input-/Output-Zeile passt nicht "
+                            + "zur Netztopologie."
+            );
         }
 
-        return new double[0];
+        return Arrays.copyOfRange(
+                data,
+                0,
+                inputCount
+        );
     }
+
+
+    /*
+     * Bestimmt die Anzahl NORMALER Neuronen
+     * pro Layer, also ohne Bias.
+     */
+    private static int[] determineNeuronNumbers(
+            ParsedCSV parsed) {
+
+        /*
+         * Falls Gewichtsmatrizen vorhanden sind,
+         * wird die Topologie daraus bestimmt.
+         */
+        if (!parsed.weights.isEmpty()) {
+
+            int[] neuronNumbers =
+                    new int[parsed.weights.size() + 1];
+
+            /*
+             * Erste Matrix:
+             *
+             * Zeilen =
+             * Inputneuronen + Bias
+             */
+            neuronNumbers[0] =
+                    parsed.weights.getFirst().length - 1;
+
+
+            for (int i = 0;
+                 i < parsed.weights.size();
+                 i++) {
+
+                double[][] matrix =
+                        parsed.weights.get(i);
+
+                validateMatrix(matrix);
+
+                /*
+                 * Zeilenanzahl muss zu aktuellem
+                 * Layer + Bias passen.
+                 */
+                if (matrix.length
+                        != neuronNumbers[i] + 1) {
+
+                    throw new IllegalArgumentException(
+                            "Gewichtsmatrix der Ebene "
+                                    + (i + 1)
+                                    + " passt nicht zur "
+                                    + "Netztopologie."
+                    );
+                }
+
+                /*
+                 * Spalten =
+                 * normale Neuronen des nächsten Layers
+                 */
+                neuronNumbers[i + 1] =
+                        matrix[0].length;
+            }
+
+            validateFunctions(
+                    parsed.functions,
+                    neuronNumbers
+            );
+
+            return neuronNumbers;
+        }
+
+
+        /*
+         * Keine Gewichte:
+         * Dann kann #Functions die Topologie
+         * für firstInit festlegen.
+         */
+        if (!parsed.functions.isEmpty()) {
+
+            int[] neuronNumbers =
+                    new int[parsed.functions.size()];
+
+            for (int i = 0;
+                 i < parsed.functions.size();
+                 i++) {
+
+                neuronNumbers[i] =
+                        parsed.functions.get(i).length;
+            }
+
+            return neuronNumbers;
+        }
+
+
+        throw new IllegalArgumentException(
+                "Netztopologie konnte nicht bestimmt werden."
+        );
+    }
+
 
     private static Layers[] createLayers(
             double[] input,
@@ -60,7 +203,36 @@ public class Reader {
         neuronNumbers[count - 1] =
                 weights[weights.length - 1].length;
 
-        Layers[] layers = new Layers[count];
+            /*
+             * Alle Layer außer dem Output-Layer
+             * besitzen ein BiasNeuron.
+             */
+            boolean hasBias =
+                    i < layerCount - 1;
+
+            int totalNeuronCount =
+                    normalNeuronNumbers[i]
+                            + (hasBias ? 1 : 0);
+
+
+            /*
+             * Gewichtsmatrix eintragen,
+             * falls forwardPass() und nicht firstInit().
+             */
+            if (withWeights
+                    && i < fileWeights.size()) {
+
+                double[][] internalMatrix =
+                        convertWeightMatrix(
+                                fileWeights.get(i),
+                                i + 1 < layerCount - 1
+                        );
+
+                layers[i] =
+                        new Layers(
+                                totalNeuronCount,
+                                internalMatrix
+                        );
 
         for (int i = 0; i < count; i++) {
 
@@ -70,20 +242,75 @@ public class Reader {
                         weights[i]
                 );
             } else {
-                layers[i] = new Layers(neuronNumbers[i]);
+
+                layers[i] =
+                        new Layers(totalNeuronCount);
             }
 
-            // Normale Neuronen initialisieren
-            for (int j = 0; j < neuronNumbers[i]; j++) {
-                layers[i].getNeurons()[j] =
-                        new LayerNeuron(value -> value);
+
+            /*
+             * Normale Neuronen erzeugen und
+             * Aktivierungsfunktion setzen.
+             */
+            for (int j = 0;
+                 j < normalNeuronNumbers[i];
+                 j++) {
+
+                Function function;
+
+                /*
+                 * Wenn keine Funktionen angegeben wurden:
+                 * Default = Identitätsfunktion.
+                 */
+                if (functionNames.isEmpty()) {
+
+                    function =
+                            value -> value;
+
+                } else {
+
+                    String functionName =
+                            functionNames
+                                    .get(i)[j];
+
+                    function =
+                            parseFunction(functionName);
+                }
+
+
+                layers[i]
+                        .getNeurons()[j]
+                        = new LayerNeuron(function);
+            }
+
+
+            /*
+             * BiasNeuron ist immer das letzte
+             * Neuron des Layers.
+             */
+            if (hasBias) {
+
+                layers[i]
+                        .getNeurons()[totalNeuronCount - 1]
+                        = new BiasNeuron();
             }
         }
 
-        // Inputwerte im ersten Layer setzen
+
+        /*
+         * Inputwerte setzen.
+         *
+         * Dabei wird bereits die Aktivierungsfunktion
+         * der Inputneuronen angewendet.
+         */
         for (int i = 0; i < input.length; i++) {
-            ((LayerNeuron) layers[0].getNeurons()[i])
-                    .setValue(input[i]);
+
+            LayerNeuron neuron =
+                    (LayerNeuron)
+                            layers[0]
+                                    .getNeurons()[i];
+
+            neuron.setValue(input[i]);
         }
 
         // Bias-Neuronen berücksichtigen
@@ -97,13 +324,60 @@ public class Reader {
                 normalNeurons = weights[i - 1].length;
             }
 
-            if (neuronNumbers[i] == normalNeurons + 1) {
-                layers[i].getNeurons()[neuronNumbers[i] - 1]
-                        = new BiasNeuron();
+
+    /*
+     * Wandelt das Vorlesungsformat
+     *
+     * [Quellneuron][Zielneuron]
+     *
+     * in das interne Format
+     *
+     * [Zielneuron][Quellneuron]
+     *
+     * um.
+     */
+    private static double[][] convertWeightMatrix(
+            double[][] matrix,
+            boolean nextLayerHasBias) {
+
+        int sourceNeuronCount =
+                matrix.length;
+
+        int targetNeuronCount =
+                matrix[0].length;
+
+        int internalTargetCount =
+                targetNeuronCount
+                        + (nextLayerHasBias ? 1 : 0);
+
+
+        double[][] result =
+                new double[internalTargetCount]
+                        [sourceNeuronCount];
+
+
+        for (int source = 0;
+             source < sourceNeuronCount;
+             source++) {
+
+            for (int target = 0;
+                 target < targetNeuronCount;
+                 target++) {
+
+                result[target][source] =
+                        matrix[source][target];
             }
         }
 
-        return layers;
+        /*
+         * Falls der nächste Layer ein BiasNeuron hat,
+         * bleibt die letzte Zeile bei 0.
+         *
+         * Layers.input() ignoriert diesen Wert
+         * ohnehin für das BiasNeuron.
+         */
+
+        return result;
     }
 
     private static double[] readInput(String source) {
@@ -252,15 +526,43 @@ public class Reader {
         }
     }
 
-    private static double[] parseValues(String line) {
-        String[] values = line.split(",");
-        double[] result = new double[values.length];
 
         for (int i = 0; i < values.length; i++) {
             result[i] =
                     Double.parseDouble(values[i].trim());
         }
 
+
         return result;
+    }
+
+
+    private enum Section {
+        NONE,
+        FUNCTIONS,
+        WEIGHTS
+    }
+
+
+    private static class ParsedCSV {
+
+        private final double[] data;
+
+        private final ArrayList<String[]>
+                functions;
+
+        private final ArrayList<double[][]>
+                weights;
+
+
+        private ParsedCSV(
+                double[] data,
+                ArrayList<String[]> functions,
+                ArrayList<double[][]> weights) {
+
+            this.data = data;
+            this.functions = functions;
+            this.weights = weights;
+        }
     }
 }

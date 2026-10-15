@@ -1,0 +1,22 @@
+1,2,    1
+
+#Functions
+# ebene 0
+id,id
+# ebene 1
+relu,relu
+# ebene 2
+step:3
+
+#Weights
+# ebene 1
+1,2
+1,-1
+# Bias Ebene 1
+0,0
+
+# ebene 2
+1
+1
+# Bias Ebene 2
+0

@@ -7,6 +7,10 @@ public class LayerNeuron extends Neuron implements Function {
         this.function = function;
     }
 
+    public LayerNeuron() {
+        this.function = value -> value; // Default: Identitätsfunktion
+    }
+
     /** Setzt den Wert des Neurons und wendet dabei die Aktivierungsfunktion an.
      * @param value der Eingangswert vor der Aktivierung */
     public void setValue(double value) {
