@@ -11,7 +11,7 @@ public class Main {
     static void main() {
 
         Function[][] topology = {
-                {Functions.ID, Functions.ID}, {Functions.RELU, Functions.RELU}, {Functions.step(3)}
+                {Functions.ID, Functions.ID}, {Functions.RELU, Functions.RELU}, {Functions.ID}
         };
 
         Network network = NetworkFactory.create(topology);
