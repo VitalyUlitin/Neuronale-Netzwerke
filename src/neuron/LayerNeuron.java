@@ -1,7 +1,9 @@
+package neuron;
+
 public class LayerNeuron extends Neuron implements Function {
     private Function function;
 
-    /** Erstellt ein neues LayerNeuron und initialisiert es mit einer Aktivierungsfunktion.
+    /** Erstellt ein neues Neuron.LayerNeuron und initialisiert es mit einer Aktivierungsfunktion.
      * @param function die Aktivierungsfunktion */
     public LayerNeuron(Function function) {
         this.function = function;

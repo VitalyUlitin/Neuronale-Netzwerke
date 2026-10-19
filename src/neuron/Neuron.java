@@ -1,3 +1,4 @@
+package neuron;
 
 public class Neuron {
     protected double value;
