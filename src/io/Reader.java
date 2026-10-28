@@ -8,21 +8,7 @@ import java.io.InputStreamReader;
 
 public final class Reader {
     //contains training sets e.g. (1;2;       3)
-    public static class DataSet {
-        private final double[][] inputs;
-        private final double[][] outputs;
-
-        public DataSet(double[][] inputs, double[][] outputs) {
-            this.inputs = inputs;
-            this.outputs = outputs;
-        }
-        public double[][] inputs() {
-            return inputs;
-        }
-
-        public double[][] outputs() {
-            return outputs;
-        }
+        public record DataSet(double[][] inputs, double[][] outputs) {
     }
 
     //reads the training sets and
@@ -46,7 +32,6 @@ public final class Reader {
                 double[] values = parseNumbers(line);
 
                 if (values.length != inputCount + outputCount) {
-                    reader.close();
                     throw new IllegalArgumentException(
                             "Datensatz " + row
                                     + " enthält "
@@ -60,13 +45,9 @@ public final class Reader {
                 }
 
                 // Input
-                for (int i = 0; i < inputCount; i++) {
-                    inputs[row][i] = values[i];
-                }
+                System.arraycopy(values, 0, inputs[row], 0, inputCount);
                 // Output
-                for (int i = 0; i < outputCount; i++) {
-                    outputs[row][i] = values[inputCount + i];
-                }
+                System.arraycopy(values, inputCount, outputs[row], 0, outputCount);
                 row++;
             }
         } catch (IOException e) {
@@ -112,21 +93,12 @@ public final class Reader {
             while ((line = reader.readLine()) != null) {
                 line = line.trim();
 
-                if (line.isEmpty()) {
-                    continue;
-                }
-
                 if (isLayerHeader(line)) {
                     layer++;
                     continue;
                 }
-
                 //ignore #Weights,#Bias Ebene and other # controls
-                if (line.startsWith("#")) {
-                    continue;
-                }
-
-                if (layer < 0) {
+                if (line.isEmpty() || line.startsWith("#") || layer < 0) {
                     continue;
                 }
 
@@ -135,7 +107,6 @@ public final class Reader {
                 if (columns[layer] == 0) {
                     columns[layer] = values.length;
                 } else if (columns[layer] != values.length) {
-                    reader.close();
                     throw new IllegalArgumentException(
                             "Gewichtsmatrix Ebene " + (layer + 1) + " ist nicht rechteckig.");
                 }
@@ -144,12 +115,14 @@ public final class Reader {
         } catch (IOException e) {
             throw new RuntimeException("Fehler beim Lesen der Gewichte.", e);
         }
+
         //creates weightmatrix
         double[][][] weights = new double[layerCount][][];
 
         for (int i = 0; i < layerCount; i++) {
             weights[i] = new double[rows[i]][columns[i]];
         }
+
         //second iteration: fills the double[][][]
         try (BufferedReader reader = openReader(source)){
             String line;
@@ -160,22 +133,18 @@ public final class Reader {
             while ((line = reader.readLine()) != null) {
                 line = line.trim();
 
-                if (line.isEmpty()) {
-                    continue;
-                }
                 if (isLayerHeader(line)) {
                     layer++;
                     continue;
                 }
-                if (line.startsWith("#") || layer < 0) {
+                //ignore #Weights,#Bias Ebene and other # controls
+                if (line.isEmpty() || line.startsWith("#") || layer < 0) {
                     continue;
                 }
 
                 double[] values = parseNumbers(line);
 
-                for (int column = 0; column < values.length; column++) {
-                    weights[layer][currentRow[layer]][column] = values[column];
-                }
+                System.arraycopy(values, 0, weights[layer][currentRow[layer]], 0, values.length);
 
                 currentRow[layer]++;
             }
