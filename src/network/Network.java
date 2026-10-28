@@ -1,5 +1,7 @@
 package network;
 
+import neuron.BiasNeuron;
+import neuron.LayerNeuron;
 import neuron.Neuron;
 
 public class Network {
@@ -66,6 +68,63 @@ public class Network {
         }
 
         return getOutput();
+    }
+
+    public void backpropagation(double learningRate, double[] expectedOutput) {
+        forwardPass();
+
+        int lastLayerIndex = layers.length - 1;
+        Neuron[] outputNeurons = layers[lastLayerIndex].getNeurons();
+
+        for (int i = 0; i < outputNeurons.length; i++) {
+            LayerNeuron neuron = (LayerNeuron) outputNeurons[i];
+            double error = neuron.getValue() - expectedOutput[i];
+            neuron.setDelta(error * neuron.getActivationDerivative());
+        }
+
+        for (int layerIndex = lastLayerIndex - 1; layerIndex > 0; layerIndex--) {
+            Neuron[] currentNeurons = layers[layerIndex].getNeurons();
+            Neuron[] nextNeurons = layers[layerIndex + 1].getNeurons();
+            double[][] weights = layers[layerIndex].getWeightMatrix();
+
+            for (int neuronIndex = 0; neuronIndex < currentNeurons.length; neuronIndex++) {
+                if (currentNeurons[neuronIndex] instanceof BiasNeuron) {
+                    continue;
+                }
+
+                LayerNeuron neuron = (LayerNeuron) currentNeurons[neuronIndex];
+                double error = 0.0;
+
+                for (int nextIndex = 0; nextIndex < nextNeurons.length; nextIndex++) {
+                    if (!(nextNeurons[nextIndex] instanceof BiasNeuron)) {
+                        LayerNeuron nextNeuron = (LayerNeuron) nextNeurons[nextIndex];
+                        error += weights[neuronIndex][nextIndex] * nextNeuron.getDelta();
+                    }
+                }
+
+                neuron.setDelta(error * neuron.getActivationDerivative());
+            }
+        }
+
+        for (int layerIndex = 0; layerIndex < lastLayerIndex; layerIndex++) {
+            Neuron[] currentNeurons = layers[layerIndex].getNeurons();
+            Neuron[] nextNeurons = layers[layerIndex + 1].getNeurons();
+            double[][] weights = layers[layerIndex].getWeightMatrix();
+
+            for (int nextIndex = 0; nextIndex < nextNeurons.length; nextIndex++) {
+                if (nextNeurons[nextIndex] instanceof BiasNeuron) {
+                    continue;
+                }
+
+                LayerNeuron nextNeuron = (LayerNeuron) nextNeurons[nextIndex];
+
+                for (int currentIndex = 0; currentIndex < currentNeurons.length; currentIndex++) {
+                    weights[currentIndex][nextIndex] -= learningRate
+                            * nextNeuron.getDelta()
+                            * currentNeurons[currentIndex].getValue();
+                }
+            }
+        }
     }
 
     public double[] getOutput() {

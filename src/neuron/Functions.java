@@ -2,15 +2,83 @@ package neuron;
 
 public final class Functions {
 
-    public static final Function ID = value -> value;
+    private Functions() {
+    }
 
-    public static final Function RELU = value -> Math.max(0.0, value);
 
-    public static final Function SIGMOID = value -> 1.0 / (1.0 + Math.exp(-value));
+    public static final Function ID = new Function() {
 
-    public static final Function TANH = Math::tanh;
+        @Override
+        public double calculate(double value) {
+            return value;
+        }
+
+        @Override
+        public double derivative(double value) {
+            return 1.0;
+        }
+    };
+
+
+    public static final Function RELU = new Function() {
+
+        @Override
+        public double calculate(double value) {
+            return Math.max(0.0, value);
+        }
+
+        @Override
+        public double derivative(double value) {
+            return value > 0.0 ? 1.0 : 0.0;
+        }
+    };
+
+
+    public static final Function SIGMOID = new Function() {
+        @Override
+        public double calculate(double value) {
+            return 1.0 / (1.0 + Math.exp(-value));
+        }
+
+        @Override
+        public double derivative(double value) {
+            double sigmoid = calculate(value);
+
+            return sigmoid * (1.0 - sigmoid);
+        }
+    };
+
+
+    public static final Function TANH = new Function() {
+        @Override
+        public double calculate(double value) {
+            return Math.tanh(value);
+        }
+
+        @Override
+        public double derivative(double value) {
+            double tanh = Math.tanh(value);
+
+            return 1.0 - tanh * tanh;
+        }
+    };
+
 
     public static Function step(double theta) {
-        return value -> value >= theta ? 1.0 : 0.0;
+        return new Function() {
+
+            @Override
+            public double calculate(double value) {
+                return value >= theta ? 1.0 : 0.0;
+            }
+
+            @Override
+            public double derivative(double value) {
+                throw new UnsupportedOperationException(
+                        "Die Schwellwertfunktion ist für "
+                                + "Backpropagation ungeeignet."
+                );
+            }
+        };
     }
 }
