@@ -79,4 +79,8 @@ public class Network {
 
         return output;
     }
+
+    public Layer[] getLayers() {
+        return layers;
+    }
 }
