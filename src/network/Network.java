@@ -127,6 +127,42 @@ public class Network {
         }
     }
 
+    public TrainingResult train(double[][] inputs, double[][] expectedOutputs,
+                                int maxEpochs, double learningRate, double tolerance) {
+        double totalError = Double.POSITIVE_INFINITY;
+
+        for (int epoch = 1; epoch <= maxEpochs; epoch++) {
+            for (int i = 0; i < inputs.length; i++) {
+                setInput(inputs[i]);
+                backpropagation(learningRate, expectedOutputs[i]);
+            }
+
+            totalError = calculateTotalError(inputs, expectedOutputs);
+
+            if (totalError <= tolerance) {
+                return new TrainingResult(epoch, totalError, true);
+            }
+        }
+        return new TrainingResult(maxEpochs, totalError, false);
+    }
+
+    private double calculateTotalError(double[][] inputs, double[][] expectedOutputs) {
+        double totalError = 0.0;
+
+        for (int i = 0; i < inputs.length; i++) {
+            setInput(inputs[i]);
+            double[] actualOutput = forwardPass();
+
+            for (int j = 0; j < actualOutput.length; j++) {
+
+                double difference = expectedOutputs[i][j] - actualOutput[j];
+                totalError += 0.5 * difference * difference;
+            }
+        }
+
+        return totalError;
+    }
+
     public double[] getOutput() {
         Neuron[] neurons = layers[layers.length - 1].getNeurons();
 

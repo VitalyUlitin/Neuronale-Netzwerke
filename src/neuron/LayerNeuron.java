@@ -8,11 +8,11 @@ public class LayerNeuron extends Neuron implements Function {
     // Erstellt ein neues LayerNeuron und initialisiert es mit einer Aktivierungsfunktion.
     // @param function die Aktivierungsfunktion
     public LayerNeuron(Function function) {
-        this.function = Functions.ID;
+        this.function = function;
     }
 
     public LayerNeuron() {
-        this.function = value -> value; // Default: Identitätsfunktion
+        this.function = Functions.ID; // Default: Identitätsfunktion
     }
 
     // Setzt den Wert des Neurons und wendet dabei die Aktivierungsfunktion an.
