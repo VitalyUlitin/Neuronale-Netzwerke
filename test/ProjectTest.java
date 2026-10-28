@@ -2,6 +2,7 @@
 import io.Reader;
 import network.Network;
 import network.NetworkFactory;
+import network.TrainingResult;
 import neuron.BiasNeuron;
 import neuron.Function;
 import neuron.Functions;
@@ -46,6 +47,49 @@ public class ProjectTest {
             assertArrayEquals(data.outputs()[i], actual);
         }
 
+    }
+
+    @Test
+    void networkTrainingLearnsLinearFunction() {
+
+        Function[][] topology = {
+                {Functions.ID},
+                {Functions.ID}
+        };
+
+        Network network = NetworkFactory.create(topology);
+
+
+        //start weights are set manually for deterministic behaviour (x -> < = 0, bias -. = 0
+        double[][][] weights = {{{0.0}, {0.0}}};
+        network.setWeights(weights);
+
+        //train fnction y = 2x+1
+        double[][] inputs = {{0.0}, {1.0}, {2.0}};
+
+        double[][] expectedOutputs = {{1.0}, {3.0}, {5.0}};
+
+        TrainingResult result =
+                network.train(
+                        inputs,
+                        expectedOutputs,
+                        10_000,
+                        0.1,
+                        0.00000001
+                );
+
+        //checking tolerance
+        assertTrue(result.converged());
+
+        assertTrue(result.error() <= 0.00000001);
+
+
+        //real forward pass test
+        for (int i = 0; i < inputs.length; i++) {
+            network.setInput(inputs[i]);
+            double[] actual = network.forwardPass();
+            assertEquals(expectedOutputs[i][0], actual[0], 0.001);
+        }
     }
 
 }
