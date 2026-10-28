@@ -1,3 +1,5 @@
+package neuron;
+
 public interface Function {
     /** Berechnet den Funktionswert für den gegebenen Input.
      * @param value des Input

@@ -1,0 +1,13 @@
+#Weights
+
+# ebene 1
+1;2
+1;-1
+# Bias Ebene 1
+0;0
+
+# ebene 2
+1
+1
+# Bias Ebene 2
+0

@@ -1,41 +1,16 @@
 
+import io.Reader;
+import network.Network;
+import network.NetworkFactory;
+import neuron.BiasNeuron;
+import neuron.Function;
+import neuron.Functions;
+import neuron.LayerNeuron;
 import org.junit.jupiter.api.Test;
-
-import java.io.File;
-import java.net.URISyntaxException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ProjectTest {
-
-    private final String source = new File(Network.class.getResource("/testSet.csv").toURI()).getPath();
-
-    public ProjectTest() throws URISyntaxException {
-    }
-
-    @Test
-    void testReadOutput() {
-        double[] output = Reader.readOutput(source);
-
-        assertNotNull(output);
-        assertTrue(output.length > 0);
-    }
-
-    @Test
-    void testReadLayers() {
-        Layers[] layers = Reader.readLayers(source);
-
-        assertNotNull(layers);
-        assertTrue(layers.length > 0);
-    }
-
-    @Test
-    void testReadLayersFirstInit() {
-        Layers[] layers = Reader.readLayersFirstInit(source);
-
-        assertNotNull(layers);
-        assertTrue(layers.length > 0);
-    }
 
     @Test
     void testBiasNeuron() {
@@ -51,18 +26,26 @@ public class ProjectTest {
 
         assertEquals(6.0, neuron.getValue(), 0.0001);
     }
-    @Test
-    void testFirstInit() {
-        Network network = new Network(source);
-
-    }
 
     @Test
     void testForwardPass() {
-        Network network = new Network(source);
+        Function[][] topology = {{Functions.ID, Functions.ID}, {Functions.RELU, Functions.RELU}, {Functions.ID}};
 
-        double[] expected = {1};
-        assertArrayEquals(expected, network.forwardPass());
+        Network network = NetworkFactory.create(topology);
+
+        Reader.DataSet data = Reader.readData("/training.csv", network.getInputSize(), network.getOutputSize());
+
+        network.setWeights(Reader.readWeights("/weights.csv"));
+
+        for (int i = 0; i < data.inputs().length; i++) {
+            network.setInput(data.inputs()[i]);
+
+
+            double[] actual = network.forwardPass();
+
+            assertArrayEquals(data.outputs()[i], actual);
+        }
+
     }
 
 }
