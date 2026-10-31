@@ -39,7 +39,7 @@ public class Persistence {
         }
     }
 
-    private static void writeToFile(String output, String path) throws IOException {
+    public static void writeToFile(String output, String path) throws IOException {
         BufferedWriter writer = new BufferedWriter(new FileWriter(path));
         writer.write(output);
 

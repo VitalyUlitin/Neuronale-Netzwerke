@@ -1,5 +1,6 @@
 package network;
 
+import io.Persistence;
 import neuron.BiasNeuron;
 import neuron.LayerNeuron;
 import neuron.Neuron;
@@ -131,6 +132,8 @@ public class Network {
                                 int maxEpochs, double learningRate, double tolerance) {
         double totalError = Double.POSITIVE_INFINITY;
 
+        StringBuilder errorLog = new StringBuilder("epoch;error\n");
+
         for (int epoch = 1; epoch <= maxEpochs; epoch++) {
             for (int i = 0; i < inputs.length; i++) {
                 setInput(inputs[i]);
@@ -138,11 +141,17 @@ public class Network {
             }
 
             totalError = calculateTotalError(inputs, expectedOutputs);
-
+            errorLog.append(epoch).append(";").append(totalError).append("\n");
             if (totalError <= tolerance) {
+                try {
+                    Persistence.writeToFile(errorLog.toString(), "errorlog.csv");
+                } catch (Exception e) { e.printStackTrace();}
                 return new TrainingResult(epoch, totalError, true);
             }
         }
+        try {
+            Persistence.writeToFile(errorLog.toString(), "errorlog.csv");
+        } catch (Exception e) { e.printStackTrace();}
         return new TrainingResult(maxEpochs, totalError, false);
     }
 
